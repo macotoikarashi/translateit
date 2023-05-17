@@ -34,7 +34,7 @@ def main(page: ft.Page):
 
     lines = ft.Column()
     page.add(lines)
-    for i in range(10):
+    for i in range(10+1):
         lines.controls.append(ft.Text(f"Line {i}"))
         if i > 4:
             lines.controls.pop(0)
