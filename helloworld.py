@@ -59,9 +59,6 @@ def main(page: ft.Page):
     page.add(pushed_names)
 
 
-
-
-
 # open in a native OS window
 ft.app(target=main)
 # open in a new browser window
