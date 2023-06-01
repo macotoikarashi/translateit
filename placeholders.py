@@ -1,4 +1,4 @@
-def returnDialog(keywords="Ghost,High school"):
+def returnDialogue(keywords="Ghost,High school"):
     return """
     {
   "dialogue": [
@@ -133,6 +133,6 @@ def returnEvaluation(question="...", correctEx="....", answer="....."):
     """
 
 if __name__=="__main__":
-    print(returnDialog())
+    print(returnDialogue())
     print(returnJapanese())
     print(returnEvaluation())
