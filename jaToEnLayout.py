@@ -28,12 +28,12 @@ class DialogueData:
         self.q_dict["dialogue"][self.x]["content"][self.y] = copy.copy(self.trans_dict["dialogue"][self.x]["content"][self.y])
 
     def q_english(self):
-        if (not self.q_dict) and self.q_dict["dialogue"][self.x]["content"][self.y]==self.trans_dict["dialogue"][self.x]["content"][self.y]:
+        if self.q_dict and self.q_dict["dialogue"][self.x]["content"][self.y]==self.trans_dict["dialogue"][self.x]["content"][self.y]:
             return self.dia_dict["dialogue"][self.x]["content"][self.y]
         else:
             return False
     def q_japanese(self):
-        if (not self.q_dict) and self.q_dict["dialogue"][self.x]["content"][self.y]==self.trans_dict["dialogue"][self.x]["content"][self.y]:
+        if self.q_dict and self.q_dict["dialogue"][self.x]["content"][self.y]==self.trans_dict["dialogue"][self.x]["content"][self.y]:
             return self.trans_dict["dialogue"][self.x]["content"][self.y]
         else:
             return False
@@ -45,7 +45,14 @@ def main(page: ft.Page):
 
     keywords = ft.Ref[ft.TextField]()
     genBtn = ft.Ref[ft.ElevatedButton]()
+    q = ft.Ref[ft.Column]()
     qTxt = ft.Ref[ft.Column]()
+    userAnswer = ft.Ref[ft.TextField]()
+    ansBtn = ft.Ref[ft.ElevatedButton]()
+    a = ft.Ref[ft.Column]()
+    aJa = ft.Ref[ft.Text]()
+    aUser = ft.Ref[ft.Text]()
+    aEvaluation = ft.Ref[ft.Text]()
 
     # dia_json = ""
     # trans_json = ""
@@ -82,6 +89,7 @@ def main(page: ft.Page):
         data.set_question()
         qTxt.current.clean()
         qTxt.current.controls = makeDiaText(data.q_dict["dialogue"])
+        q.current.visible = True
         page.update()
         
 
@@ -93,19 +101,55 @@ def main(page: ft.Page):
                     speaker = dia[i]["speaker"]
                 else:
                     speaker = " " * (len(dia[i]["speaker"]))
+                if i==data.x and j==data.y:
+                    isBold = True
+                else:
+                    isBold = False
                 res.append(
                     ft.Row(controls=[
                         ft.Text(speaker, width=100,text_align="CENTER"),
-                        ft.Text(dia[i]["content"][j])
-                        ],
+                        ft.Text(
+                            dia[i]["content"][j],
+                            weight=ft.FontWeight.BOLD if isBold else ft.FontWeight.NORMAL
                         )
+                    ])
                 )
         return res
 
+    def evaluateAns(e):
+        eval = ph.returnEvaluation(situation=data.q_dict["status"]["situation"],question=data.q_japanese(), correctEx=data.q_english, answer=userAnswer.current.value)
+        eval_dict = json.loads(eval)
+        aJa.current.value = data.q_japanese()
+        aUser.current.value = userAnswer.current.value
+        aEvaluation.current.value = eval_dict["evaluate"]
+        a.current.visible = True
+        page.update()
+
+
     page.add(
-            ft.TextField(ref=keywords, label="Input keyword(s)"),
+            ft.TextField(ref=keywords, label="Input keyword(s)", width=600),
             ft.ElevatedButton(ref=genBtn, text="Generate dialogue", on_click=genDia),
-            ft.Column(ref=qTxt)
+            ft.Column(ref=q,controls=[
+                ft.Divider(),
+                ft.Column(ref=qTxt),
+                ft.TextField(ref=userAnswer,label="Traslate into English", width=600),
+                ft.ElevatedButton(ref=ansBtn,text="Answer", on_click=evaluateAns)
+            ], visible=False),
+            ft.Column(ref=a,controls=[
+                ft.Divider(),
+                ft.Row(controls=[
+                    ft.Text("問題文：", width=100,text_align="CENTER"),
+                    ft.Text(ref=aJa),
+                ]),
+                ft.Row(controls=[
+                    ft.Text("あなたの回答：", width=100,text_align="CENTER"),
+                    ft.Text(ref=aUser),
+                ]),
+                ft.Row(controls=[
+                    ft.Text("解説：", width=100,text_align="CENTER"),    
+                    ft.Text(ref=aEvaluation, width=500)
+                ], vertical_alignment=ft.CrossAxisAlignment.START),
+            ],visible=False)
     )
 
 

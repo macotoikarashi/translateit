@@ -111,25 +111,12 @@ def returnJapanese(jsontext="..."):
 }
     """
 
-def returnEvaluation(question="...", correctEx="....", answer="....."):
+def returnEvaluation(situation="..",question="...", correctEx="....", answer="....."):
     return """
-        Your translation is almost correct, but there is a slight difference in nuance. Let me explain it in Japanese.
-
-あなたの翻訳はほとんど正しいですが、微妙なニュアンスの違いがあります。以下、日本語で説明します。
-
-「Do you remember that haunted house on Oak Street?」
-（オークストリートにあったあのお化け屋敷覚えてる？）
-
-この文は、相手に「オークストリートにあるあのお化け屋敷を覚えているか」と尋ねる表現です。相手が直近にオークストリートに行ったり、そのお化け屋敷を体験したことがあるかどうかを尋ねています。
-
-「Do you remember the haunted house that used to be at Oak Street?」
-（オークストリートに以前あったお化け屋敷を覚えていますか？）
-
-一方、あなたの翻訳は「オークストリートに以前あったお化け屋敷を覚えているか」と尋ねています。こちらは相手が過去にオークストリートにあったお化け屋敷を経験したことや、それが現在も存在しているかどうかを尋ねる表現です。
-
-したがって、もし相手がオークストリートに行ったことがなく、お化け屋敷が現在もあるかどうかは知らない場合、あなたの翻訳だと少し意味が異なってしまいます。
-
-正解の翻訳は「Do you remember that haunted house on Oak Street?」です。
+      {
+"isgood": true,
+"evaluate": "あなたの翻訳は正しいです。この文脈では、「Do you remember the haunted house that used to be at Oak Street?」という表現が適切です。EmilyとBenは高校の友人であり、5年ぶりに再会した状況です。そのため、相手がオークストリートにあったお化け屋敷を覚えているかどうかを尋ねるのが適切です。あなたの翻訳と正解例との違いは微妙ですが、ニュアンス的にはほとんど変わりません。素晴らしい翻訳ですね！"
+}
     """
 
 if __name__=="__main__":
