@@ -1,4 +1,7 @@
-def returnDialogue(keywords="Ghost,High school"):
+import asyncio
+
+async def returnDialogue(keywords="Ghost,High school"):
+    await asyncio.sleep(10)
     return """
     {
   "dialogue": [
@@ -61,7 +64,8 @@ def returnDialogue(keywords="Ghost,High school"):
 }
     """
 
-def returnJapanese(jsontext="..."):
+async def returnJapanese(jsontext="..."):
+    await asyncio.sleep(5)
     return """
     {
 "dialogue": [
@@ -111,11 +115,12 @@ def returnJapanese(jsontext="..."):
 }
     """
 
-def returnEvaluation(situation="..",question="...", correctEx="....", answer="....."):
+async def returnEvaluation(situation="..",question="...", correctEx="....", answer="....."):
+    await asyncio.sleep(8)
     return """
-      {
-"isgood": true,
-"evaluate": "あなたの翻訳は正しいです。この文脈では、「Do you remember the haunted house that used to be at Oak Street?」という表現が適切です。EmilyとBenは高校の友人であり、5年ぶりに再会した状況です。そのため、相手がオークストリートにあったお化け屋敷を覚えているかどうかを尋ねるのが適切です。あなたの翻訳と正解例との違いは微妙ですが、ニュアンス的にはほとんど変わりません。素晴らしい翻訳ですね！"
+{
+  "isgood": true,
+  "evaluate": "あなたの翻訳は正しいです。この文脈では、「Do you remember the haunted house that used to be at Oak Street?」という表現が適切です。EmilyとBenは高校の友人であり、5年ぶりに再会した状況です。そのため、相手がオークストリートにあったお化け屋敷を覚えているかどうかを尋ねるのが適切です。あなたの翻訳と正解例との違いは微妙ですが、ニュアンス的にはほとんど変わりません。素晴らしい翻訳ですね!"
 }
     """
 

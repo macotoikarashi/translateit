@@ -40,57 +40,66 @@ class DialogueData:
     
 
 
-def main(page: ft.Page):
+async def main(page: ft.Page):
     page.title = "TranslateIt!"
+    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
+    page.scroll = ft.ScrollMode.AUTO
 
     keywords = ft.Ref[ft.TextField]()
     genBtn = ft.Ref[ft.ElevatedButton]()
+    q_loading = ft.Ref[ft.Row]()
     q = ft.Ref[ft.Column]()
     qTxt = ft.Ref[ft.Column]()
     userAnswer = ft.Ref[ft.TextField]()
     ansBtn = ft.Ref[ft.ElevatedButton]()
+    a_loading = ft.Ref[ft.Row]()
     a = ft.Ref[ft.Column]()
     aJa = ft.Ref[ft.Text]()
     aUser = ft.Ref[ft.Text]()
     aEvaluation = ft.Ref[ft.Text]()
 
-    # dia_json = ""
-    # trans_json = ""
-    # dia_dict = {}
-    # trans_dict = {}
-    # q_dict = {}
-    
-    # def genDia():
-    #     global dia_json,trans_json,dia_dict,trans_dict
-    #     #global trans_json
-    #     #global dia_dict
-    #     #global trans_dict
-        
-    #     dia_json = ph.returnDialogue(keywords.current.value)
-    #     trans_json = ph.returnJapanese(dia_json)
-
-    #     dia_dict = json.loads(dia_json)
-    #     trans_dict = json.loads(trans_json)
-
-    #     makeQuestion()
-    
-    # def makeQuestion():
-    #     global dia_dict,trans_dict,q_dict
-    #     x = random.randint(0,len(dia_dict["dialogue"])-1)
-    #     y = random.randint(0,len(dia_dict["dialogue"][x]["content"])-1)
-
     data = DialogueData()
 
+    loadingBar = ft.Column(controls=[
+        ft.Text("Now Processing...", style="headlineSmall"),
+        ft.ProgressBar(width=400, color="amber", bgcolor="#eeeeee"),
+    ], width=600,horizontal_alignment=ft.CrossAxisAlignment.CENTER)
 
-    def genDia(e):
-        dia_json = ph.returnDialogue(keywords.current.value)
-        trans_json = ph.returnJapanese(dia_json)
+    def disableWhenLoading(sw=True):
+        keywords.current.disabled = sw
+        genBtn.current.disabled = sw
+        userAnswer.current.disabled = sw
+        ansBtn.current.disabled = sw
+
+    async def genDia(e):
+        disableWhenLoading()
+        q_loading.current.visible = True
+        q.current.visible = False
+        a.current.visible = False
+        userAnswer.current.value = ""
+        await page.update_async()
+        await page.scroll_to_async(offset=-1.0, duration=300)
+
+        dia_json = await ph.returnDialogue(keywords.current.value)
+        trans_json = await ph.returnJapanese(dia_json)
         data.set(dia_json,trans_json)
         data.set_question()
-        qTxt.current.clean()
+        qTxt.current.controls = []
         qTxt.current.controls = makeDiaText(data.q_dict["dialogue"])
+        disableWhenLoading(False)
+        q_loading.current.visible = False
         q.current.visible = True
-        page.update()
+        await page.update_async()
+        await page.scroll_to_async(offset=-1.0, duration=300)
+    # def genDia(e):    
+    #     dia_json = ph.returnDialogue(keywords.current.value)
+    #     trans_json = ph.returnJapanese(dia_json)
+    #     data.set(dia_json,trans_json)
+    #     data.set_question()
+    #     qTxt.current.clean()
+    #     qTxt.current.controls = makeDiaText(data.q_dict["dialogue"])
+    #     q.current.visible = True
+    #     page.update()
         
 
     def makeDiaText(dia):
@@ -107,49 +116,76 @@ def main(page: ft.Page):
                     isBold = False
                 res.append(
                     ft.Row(controls=[
-                        ft.Text(speaker, width=100,text_align="CENTER"),
+                        ft.Text(speaker, width=100,text_align="CENTER", selectable=True),
                         ft.Text(
                             dia[i]["content"][j],
-                            weight=ft.FontWeight.BOLD if isBold else ft.FontWeight.NORMAL
+                            weight=ft.FontWeight.BOLD if isBold else ft.FontWeight.NORMAL,
+                            selectable=True
                         )
                     ])
                 )
         return res
 
-    def evaluateAns(e):
-        eval = ph.returnEvaluation(situation=data.q_dict["status"]["situation"],question=data.q_japanese(), correctEx=data.q_english, answer=userAnswer.current.value)
+    async def evaluateAns(e):
+        disableWhenLoading()
+        a_loading.current.visible = True
+        a.current.visible = False
+        await page.update_async()
+        await page.scroll_to_async(offset=-1.0, duration=300)
+
+        eval = await ph.returnEvaluation(situation=data.q_dict["status"]["situation"],question=data.q_japanese(), correctEx=data.q_english, answer=userAnswer.current.value)
         eval_dict = json.loads(eval)
         aJa.current.value = data.q_japanese()
         aUser.current.value = userAnswer.current.value
+        aUser.current.color = "green" if eval_dict["isgood"] else "red"
         aEvaluation.current.value = eval_dict["evaluate"]
+        disableWhenLoading(False)
+        a_loading.current.visible = False
         a.current.visible = True
-        page.update()
+        await page.update_async()
+        await page.scroll_to_async(offset=-1.0, duration=300)
 
 
-    page.add(
-            ft.TextField(ref=keywords, label="Input keyword(s)", width=600),
-            ft.ElevatedButton(ref=genBtn, text="Generate dialogue", on_click=genDia),
+    await page.add_async(
+        ft.Column(controls=[
+            ft.Container(
+                content=ft.Text(""),
+                height=50,
+            ),
+            ft.Text("ひとこと英訳問題を、AIが出題してくれます。Let's try!",style=ft.TextThemeStyle.TITLE_LARGE),
+            ft.TextField(ref=keywords, label="Input keyword(s)/キーワードを入力", width=600),
+            ft.ElevatedButton(ref=genBtn, text="問題を作成", on_click=genDia),
+            ft.Row(ref=q_loading,controls=[loadingBar], visible=False),
             ft.Column(ref=q,controls=[
                 ft.Divider(),
+                ft.Text("下記の会話文の、太字の日本語を英訳してください。",style=ft.TextThemeStyle.TITLE_MEDIUM),
                 ft.Column(ref=qTxt),
-                ft.TextField(ref=userAnswer,label="Traslate into English", width=600),
-                ft.ElevatedButton(ref=ansBtn,text="Answer", on_click=evaluateAns)
+                ft.TextField(ref=userAnswer,label="太字を英文に翻訳してください", width=600),
+                ft.ElevatedButton(ref=ansBtn,text="回答する", on_click=evaluateAns)
             ], visible=False),
+            ft.Row(ref=a_loading,controls=[loadingBar], visible=False),
             ft.Column(ref=a,controls=[
                 ft.Divider(),
+                ft.Text("AIによる解説です。",style=ft.TextThemeStyle.TITLE_MEDIUM),
+                ft.Text("※解説はLLMによる自動生成です。正確性・精度は保証されておりません。あしからず。",style=ft.TextThemeStyle.LABEL_SMALL),
                 ft.Row(controls=[
-                    ft.Text("問題文：", width=100,text_align="CENTER"),
-                    ft.Text(ref=aJa),
+                    ft.Text("問題の文：", width=100,text_align="LEFT"),
+                    ft.Text(ref=aJa, width=500, selectable=True),
                 ]),
                 ft.Row(controls=[
-                    ft.Text("あなたの回答：", width=100,text_align="CENTER"),
-                    ft.Text(ref=aUser),
+                    ft.Text("あなたの回答：", width=100,text_align="LEFT"),
+                    ft.Text(ref=aUser, width=500, selectable=True),
                 ]),
                 ft.Row(controls=[
-                    ft.Text("解説：", width=100,text_align="CENTER"),    
-                    ft.Text(ref=aEvaluation, width=500)
+                    ft.Text("解説：", width=100,text_align="LEFT"),    
+                    ft.Text(ref=aEvaluation, width=500, selectable=True)
                 ], vertical_alignment=ft.CrossAxisAlignment.START),
-            ],visible=False)
+            ],visible=False),
+            ft.Container(
+                content=ft.Text(""),
+                height=50,
+            )
+        ],width=600)
     )
 
 
