@@ -1,4 +1,5 @@
-import placeholders as ph
+# import placeholders as ph
+import chatRequest as cr
 import flet as ft
 import json,copy,random
 
@@ -15,8 +16,15 @@ class DialogueData:
     def set(self,dia_json,trans_json):
         self.dia_json = dia_json
         self.trans_json = trans_json
-        self.dia_dict = json.loads(dia_json) if dia_json else {}
-        self.trans_dict = json.loads(trans_json) if trans_json else {}
+        try:
+            self.dia_dict = json.loads(dia_json) if dia_json else {}
+        except json.JSONDecodeError as e:
+            self.dia_dict = cr.json_error_placeholder
+        
+        try:
+            self.trans_dict = json.loads(trans_json) if trans_json else {}
+        except json.JSONDecodeError as e:
+            self.dia_dict = cr.json_error_placeholder
         self.x = 0
         self.y = 0
         self.q_dict = {}
@@ -45,6 +53,7 @@ async def main(page: ft.Page):
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.scroll = ft.ScrollMode.AUTO
 
+    apikey = ft.Ref[ft.TextField]()
     keywords = ft.Ref[ft.TextField]()
     genBtn = ft.Ref[ft.ElevatedButton]()
     q_loading = ft.Ref[ft.Row]()
@@ -56,6 +65,7 @@ async def main(page: ft.Page):
     a = ft.Ref[ft.Column]()
     aJa = ft.Ref[ft.Text]()
     aUser = ft.Ref[ft.Text]()
+    correctEx = ft.Ref[ft.Text]()
     aEvaluation = ft.Ref[ft.Text]()
 
     data = DialogueData()
@@ -69,9 +79,34 @@ async def main(page: ft.Page):
         keywords.current.disabled = sw
         genBtn.current.disabled = sw
         userAnswer.current.disabled = sw
-        ansBtn.current.disabled = sw
+        ansBtn.current.disabled = sw if sw else not userAnswer.current.value
+
+    def resetWhenError():
+        disableWhenLoading(False)
+        q_loading.current.visible = False
+        q.current.visible = False
+        a_loading.current.visible = False
+        a.current.visible = False
+        keywords.current.value = ""
+        qTxt.current.controls = []
+        userAnswer.current.value = ""
+        aJa.current.value = ""
+        aUser.current.value = ""
+        correctEx.current.value = ""
+        aEvaluation.current.value = ""
+        page.dialog = ft.AlertDialog(
+            title=ft.Text("APIエラーのため、リセットしました"), on_dismiss=lambda e: print("Dialog dismissed!")
+        )
+
+
+
+    
 
     async def genDia(e):
+        if not keywords.current.value:
+            # keywords.current.value = ",".join(ph.randomKeywords(3))
+            keywords.current.value = ",".join(cr.randomKeywords(3))
+        
         disableWhenLoading()
         q_loading.current.visible = True
         q.current.visible = False
@@ -80,8 +115,18 @@ async def main(page: ft.Page):
         await page.update_async()
         await page.scroll_to_async(offset=-1.0, duration=300)
 
-        dia_json = await ph.returnDialogue(keywords.current.value)
-        trans_json = await ph.returnJapanese(dia_json)
+        # dia_json = await ph.returnDialogue(keywords.current.value)
+        dia_obj = cr.returnDialogue(keywords.current.value, apikey.current.value)
+        if dia_obj["error"]:
+            resetWhenError()
+            return False
+        dia_json = dia_obj["response"].choices[0].message.content
+        # trans_json = await ph.returnJapanese(dia_json)
+        trans_obj = cr.returnJapanese(dia_json, apikey.current.value)
+        if trans_obj["error"]:
+            resetWhenError()
+            return False
+        trans_json = trans_obj["response"].choices[0].message.content
         data.set(dia_json,trans_json)
         data.set_question()
         qTxt.current.controls = []
@@ -90,17 +135,7 @@ async def main(page: ft.Page):
         q_loading.current.visible = False
         q.current.visible = True
         await page.update_async()
-        await page.scroll_to_async(offset=-1.0, duration=300)
-    # def genDia(e):    
-    #     dia_json = ph.returnDialogue(keywords.current.value)
-    #     trans_json = ph.returnJapanese(dia_json)
-    #     data.set(dia_json,trans_json)
-    #     data.set_question()
-    #     qTxt.current.clean()
-    #     qTxt.current.controls = makeDiaText(data.q_dict["dialogue"])
-    #     q.current.visible = True
-    #     page.update()
-        
+        await page.scroll_to_async(offset=-1.0, duration=300)        
 
     def makeDiaText(dia):
         res = []
@@ -133,11 +168,16 @@ async def main(page: ft.Page):
         await page.update_async()
         await page.scroll_to_async(offset=-1.0, duration=300)
 
-        eval = await ph.returnEvaluation(situation=data.q_dict["status"]["situation"],question=data.q_japanese(), correctEx=data.q_english, answer=userAnswer.current.value)
+        eval_obj = cr.returnEvaluation(situation=data.q_dict["status"]["situation"],question=data.q_japanese(), correctEx=data.q_english, answer=userAnswer.current.value, key=apikey.current.value)
+        if eval_obj["error"]:
+            resetWhenError()
+            return False
+        eval = eval_obj["response"].choices[0].message.content
         eval_dict = json.loads(eval)
         aJa.current.value = data.q_japanese()
         aUser.current.value = userAnswer.current.value
         aUser.current.color = "green" if eval_dict["isgood"] else "red"
+        correctEx.current.value = data.dia_dict["dialogue"][data.x]["content"][data.y]
         aEvaluation.current.value = eval_dict["evaluate"]
         disableWhenLoading(False)
         a_loading.current.visible = False
@@ -145,6 +185,9 @@ async def main(page: ft.Page):
         await page.update_async()
         await page.scroll_to_async(offset=-1.0, duration=300)
 
+    async def controlAnsBtn(e):
+        ansBtn.current.disabled = not userAnswer.current.value
+        await page.update_async()
 
     await page.add_async(
         ft.Column(controls=[
@@ -153,6 +196,7 @@ async def main(page: ft.Page):
                 height=50,
             ),
             ft.Text("ひとこと英訳問題を、AIが出題してくれます。Let's try!",style=ft.TextThemeStyle.TITLE_LARGE),
+            ft.TextField(ref=apikey, label="OpenAI API key", width=600),
             ft.TextField(ref=keywords, label="Input keyword(s)/キーワードを入力", width=600),
             ft.ElevatedButton(ref=genBtn, text="問題を作成", on_click=genDia),
             ft.Row(ref=q_loading,controls=[loadingBar], visible=False),
@@ -160,8 +204,8 @@ async def main(page: ft.Page):
                 ft.Divider(),
                 ft.Text("下記の会話文の、太字の日本語を英訳してください。",style=ft.TextThemeStyle.TITLE_MEDIUM),
                 ft.Column(ref=qTxt),
-                ft.TextField(ref=userAnswer,label="太字を英文に翻訳してください", width=600),
-                ft.ElevatedButton(ref=ansBtn,text="回答する", on_click=evaluateAns)
+                ft.TextField(ref=userAnswer,label="太字を英文に翻訳してください", width=600, on_change=controlAnsBtn),
+                ft.ElevatedButton(ref=ansBtn,text="回答する", on_click=evaluateAns, disabled=True)
             ], visible=False),
             ft.Row(ref=a_loading,controls=[loadingBar], visible=False),
             ft.Column(ref=a,controls=[
@@ -175,6 +219,10 @@ async def main(page: ft.Page):
                 ft.Row(controls=[
                     ft.Text("あなたの回答：", width=100,text_align="LEFT"),
                     ft.Text(ref=aUser, width=500, selectable=True),
+                ]),
+                ft.Row(controls=[
+                    ft.Text("正解例：", width=100,text_align="LEFT"),
+                    ft.Text(ref=correctEx, width=500, selectable=True),
                 ]),
                 ft.Row(controls=[
                     ft.Text("解説：", width=100,text_align="LEFT"),    
