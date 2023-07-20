@@ -224,6 +224,7 @@ async def main(page: ft.Page):
                 content=ft.Text(""),
                 height=50,
             ),
+            ft.Text("Ver.1.0"),
             ft.Text("ひとこと英訳問題を、AIが出題してくれます。Let's try!",style=ft.TextThemeStyle.TITLE_LARGE),
             ft.TextField(ref=apikey, label="OpenAI API keyを入力", width=600, password=True, on_change=controlGenBtn),
             ft.TextField(ref=keywords, label="Input keyword(s)/キーワードを入力", width=600),
